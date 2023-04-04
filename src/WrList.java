@@ -2,9 +2,9 @@ import java.util.*;
 
 public class WrList<E> implements List<E> {
     private WrList<E> origin;
-    Node<E> head;
-    Node<E> tail;
-    int size;
+    private final Node<E> head;
+    private final Node<E> tail;
+    private int size;
 
     private static class Node<E> {
         E data;
@@ -26,11 +26,11 @@ public class WrList<E> implements List<E> {
         size = 0;
     }
 
-    public WrList(WrList<E> origin, Node<E> fromNode, Node<E> toNode, int subSize) { // 생성자
+    public WrList(WrList<E> origin, Node<E> fromNode, Node<E> toNode, int subSize) { // subList용 생성자
         head = fromNode.prev;
         tail = toNode;
         size = subSize;
-        this.origin = origin;
+        this.origin = origin; // 원본 리스트
     }
 
     private class WrListIterator implements ListIterator<E> {
@@ -108,14 +108,13 @@ public class WrList<E> implements List<E> {
                 throw new IllegalStateException();
 
             lastReturned.data = e;
-            lastReturned = null;
         }
 
         @Override
         public void add(E e) { // 현재 위치에 새로운 요소 추가
-            Node<E> newNode = new Node<>(e, null, null);
-            addNode(current, newNode);
+            addNode(current, e);
             currentIndex++;
+            lastReturned = null;
         }
     }
 
@@ -169,11 +168,10 @@ public class WrList<E> implements List<E> {
             a = (T[]) java.lang.reflect.Array.newInstance(a.getClass().getComponentType(), size);
 
         int i = 0;
-        Object[] result = a;
         Node<E> current = head.next;
 
         while (current != tail) {
-            result[i++] = current.data;
+            a[i++] = (T) current.data;
             current = current.next;
         }
 
@@ -185,18 +183,13 @@ public class WrList<E> implements List<E> {
 
     @Override
     public boolean add(E e) { // 리스트의 끝에 지정된 요소 추가
-        Node<E> position = tail;
-        Node<E> newNode = new Node<>(e, null, null);
-        addNode(position, newNode);
+        addNode(tail, e);
 
         return true;
     }
 
     @Override
     public boolean remove(Object o) { // 리스트에서 지정된 요소 제거
-        if (isEmpty())
-            return false;
-
         Node<E> current = head.next;
 
         while (current != tail) {
@@ -235,17 +228,16 @@ public class WrList<E> implements List<E> {
     public boolean addAll(int index, Collection<? extends E> c) { // 지정된 인덱스에서 지정된 컬렉션의 모든 요소 추가
         if (index < 0 || index > size)
             throw new IndexOutOfBoundsException();
-        if (c.isEmpty())
-            return false;
 
+        boolean modified = false;
         Node<E> position = (index == size) ? tail : getNode(index);
 
         for (E e : c) {
-            Node<E> newNode = new Node<>(e, null, null);
-            addNode(position, newNode);
+            addNode(position, e);
+            modified = true;
         }
 
-        return true;
+        return modified;
     }
 
     @Override
@@ -289,9 +281,6 @@ public class WrList<E> implements List<E> {
 
     @Override
     public E get(int index) { // 지정된 인덱스에 있는 요소 반환
-        if (index < 0 || index >= size)
-            throw new IndexOutOfBoundsException();
-
         return getNode(index).data;
     }
 
@@ -309,9 +298,6 @@ public class WrList<E> implements List<E> {
 
     @Override
     public E set(int index, E element) { // 지정된 인덱스에 있는 요소를 새 요소로 대체
-        if (index < 0 || index >= size)
-            throw new IndexOutOfBoundsException();
-
         Node<E> current = getNode(index);
         E oldElement = current.data;
         current.data = element;
@@ -321,19 +307,12 @@ public class WrList<E> implements List<E> {
 
     @Override
     public void add(int index, E element) { // 지정된 인덱스에서 지정된 요소 추가
-        if (index < 0 || index > size)
-            throw new IndexOutOfBoundsException();
-
-        Node<E> newNode = new Node<>(element, null, null);
         Node<E> position = (index == size) ? tail : getNode(index);
-        addNode(position, newNode);
+        addNode(position, element);
     }
 
     @Override
     public E remove(int index) { // 지정된 인덱스에 있는 요소 제거
-        if (index < 0 || index >= size)
-            throw new IndexOutOfBoundsException();
-
         Node<E> node = getNode(index);
         removeNode(node);
 
@@ -384,7 +363,7 @@ public class WrList<E> implements List<E> {
 
     @Override
     public List<E> subList(int fromIndex, int toIndex) { // 지정된 범위에 해당하는 리스트 반환
-        if (fromIndex < 0 || toIndex > size || fromIndex > toIndex)
+        if (fromIndex > toIndex)
             throw new IndexOutOfBoundsException();
 
         Node<E> fromNode = (fromIndex == size) ? tail : getNode(fromIndex);
@@ -399,9 +378,8 @@ public class WrList<E> implements List<E> {
         decSize();
     }
 
-    private void addNode(Node<E> position, Node<E> node) {
-        node.prev = position.prev;
-        node.next = position;
+    private void addNode(Node<E> position, E e) {
+        Node<E> node = new Node<>(e, position.prev, position);
         position.prev.next = node;
         position.prev = node;
         incSize();
@@ -422,10 +400,9 @@ public class WrList<E> implements List<E> {
     }
 
     private void clearSize(int beforeSize) {
-        size = 0;
+        size -= beforeSize;
 
         if (origin != null)
-            for (int i = 0; i < beforeSize; i++)
-                origin.decSize();
+            origin.clearSize(beforeSize);
     }
 }
